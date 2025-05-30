@@ -172,6 +172,6 @@ if st.button("🔮 Predict Range"):
 # ✅ Footer
 st.markdown("""<hr style="border: 1px solid #ccc;">
 <div style="text-align:center; font-size: 13px;">
-🚗 Built with ❤️ by Emerita Sequeira | <a href="https://github.com/emeritasequeira/ai-ev-range-api" target="_blank">GitHub Repo</a>
+🚗 Built with by Emerita Sequeira | <a href="https://github.com/emeritasequeira/ai-ev-range-api" target="_blank">GitHub Repo</a>
 </div>
 """, unsafe_allow_html=True)
