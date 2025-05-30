@@ -3,9 +3,10 @@ import pandas as pd
 import joblib
 import plotly.graph_objects as go
 import plotly.express as px
+import time
 
-# ✅ Page setup
-st.set_page_config(page_title="EV Range Predictor", page_icon="🚗", layout="centered")
+# ✅ Page Setup
+st.set_page_config(page_title="EV Range Predictor", page_icon="🚗", layout="wide")
 
 # ✅ Load trained model
 @st.cache_resource
@@ -14,9 +15,19 @@ def load_model():
 
 model = load_model()
 
-# ✅ App Title
+# ✅ Sidebar Controls
+st.sidebar.header("⚙️ App Settings")
+auto_refresh = st.sidebar.checkbox("🔄 Auto-refresh every 30s", value=False)
+show_download = st.sidebar.checkbox("⬇️ Show CSV Download", value=True)
+
+if auto_refresh:
+    st.rerun()
+    time.sleep(30)
+
+# ✅ Title and Intro
 st.title("🔋 Smart EV Range Prediction")
 st.markdown("Estimate your **State of Charge (SoC)** and **range** based on driving and environmental conditions.")
+st.markdown("---")
 
 # ✅ Input Panel
 st.subheader("📥 Input Parameters")
@@ -36,8 +47,6 @@ with col2:
 
 # ✅ Predict Button
 if st.button("🔮 Predict Range"):
-
-    # Prepare input for the model
     input_data = pd.DataFrame([{
         "Speed (Km/h)": speed,
         "Acceleration (m/s²)": acceleration,
@@ -47,10 +56,8 @@ if st.button("🔮 Predict Range"):
         "Weather": weather
     }])
 
-    # Prediction
     predicted_soc = model.predict(input_data)[0]
 
-    # Energy consumption logic
     def energy_rate(speed, terrain, weather):
         rate = 0.15
         if speed <= 50: rate = 0.12
@@ -59,17 +66,22 @@ if st.button("🔮 Predict Range"):
         if weather in ["Hot", "Cold", "Rainy"]: rate *= 1.1
         return rate
 
-    battery_capacity = 40  # in kWh
+    battery_capacity = 40
     consumption_rate = energy_rate(speed, terrain, weather)
     remaining_energy = (predicted_soc / 100) * battery_capacity
     predicted_range = remaining_energy / consumption_rate
-
-    # ✅ Display SoC and Range
-    st.metric(label="🔋 Predicted SoC", value=f"{predicted_soc:.2f}%")
-    st.metric(label="📏 Estimated Range", value=f"{predicted_range:.2f} Km")
-
-    # ✅ SoC Drop Gauge Chart
     soc_drop = prev_soc - predicted_soc
+
+    # ✅ Metrics
+    st.markdown("---")
+    st.subheader("📊 Prediction Summary")
+    colA, colB, colC = st.columns(3)
+    colA.metric(label="🔋 Predicted SoC", value=f"{predicted_soc:.2f}%")
+    colB.metric(label="📏 Estimated Range", value=f"{predicted_range:.2f} Km")
+    colC.metric(label="⬇️ SoC Drop", value=f"{soc_drop:.2f}%")
+
+    # ✅ SoC Gauge Chart
+    st.markdown("---")
     st.subheader("📉 SoC Drop Indicator")
     fig_soc = go.Figure(go.Indicator(
         mode="gauge+number",
@@ -87,20 +99,19 @@ if st.button("🔮 Predict Range"):
     ))
     st.plotly_chart(fig_soc, use_container_width=True)
 
-    # ✅ Range Breakdown Pie Chart
+    # ✅ Pie Chart
     st.subheader("🔋 Battery Usage Distribution")
     labels = ['Used Capacity (kWh)', 'Remaining Capacity (kWh)']
     values = [battery_capacity - remaining_energy, remaining_energy]
     fig_pie = px.pie(names=labels, values=values, color_discrete_sequence=["#ff9999", "#00bfff"])
     st.plotly_chart(fig_pie, use_container_width=True)
 
-    # ✅ Optional: Speed vs Consumption Curve
-    st.subheader("📈 Speed vs Energy Consumption (Simulated)")
+    # ✅ Speed vs Energy Chart
+    st.subheader("📈 Speed vs Energy Consumption")
     speeds = list(range(20, 130, 10))
     consumption_rates = [energy_rate(s, terrain, weather) for s in speeds]
     df_curve = pd.DataFrame({'Speed (Km/h)': speeds, 'Consumption Rate (kWh/km)': consumption_rates})
-    fig_line = px.line(df_curve, x='Speed (Km/h)', y='Consumption Rate (kWh/km)',
-                       markers=True, color_discrete_sequence=["#0073e6"])
+    fig_line = px.line(df_curve, x='Speed (Km/h)', y='Consumption Rate (kWh/km)', markers=True, color_discrete_sequence=["#0073e6"])
     st.plotly_chart(fig_line, use_container_width=True)
 
     # ✅ Efficiency Score
@@ -120,7 +131,7 @@ if st.button("🔮 Predict Range"):
     st.progress(eff_score)
     st.info(f"Your driving efficiency is **{eff_score}%**")
 
-    # ✅ Conditions Summary
+    # ✅ Input Summary
     st.subheader("📝 Summary of Inputs")
     st.markdown(f"""
     - **Speed**: {speed} Km/h  
@@ -131,7 +142,7 @@ if st.button("🔮 Predict Range"):
     - **Temperature**: {temperature}°C  
     """)
 
-    # ✅ Tips Section
+    # ✅ Tips
     st.subheader("💡 Personalized Driving Tips")
     tips = []
     if speed > 100: tips.append("🔻 Reduce your speed for better efficiency.")
@@ -146,10 +157,21 @@ if st.button("🔮 Predict Range"):
     else:
         st.success("✅ Great conditions for optimal range!")
 
+    # ✅ Download CSV
+    if show_download:
+        st.subheader("📂 Download Prediction")
+        download_df = pd.DataFrame([{
+            "Predicted SoC (%)": predicted_soc,
+            "Predicted Range (Km)": predicted_range,
+            "SoC Drop": soc_drop,
+            "Driving Efficiency (%)": eff_score,
+        }])
+        st.download_button("Download CSV", data=download_df.to_csv(index=False),
+                           file_name="ev_prediction_result.csv", mime="text/csv")
+
 # ✅ Footer
-st.markdown("""
-<hr style="border: 1px solid #ccc;">
+st.markdown("""<hr style="border: 1px solid #ccc;">
 <div style="text-align:center; font-size: 13px;">
-© 2025 EV Range Predictor | Built with ❤️ using Streamlit & Plotly
+🚗 Built with ❤️ by Emerita Sequeira | <a href="https://github.com/emeritasequeira/ai-ev-range-api" target="_blank">GitHub Repo</a>
 </div>
 """, unsafe_allow_html=True)
