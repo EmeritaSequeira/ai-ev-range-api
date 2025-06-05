@@ -5,3 +5,4 @@ joblib
 plotly
 numpy
 openrouteservice
+streamlit-autorefresh
